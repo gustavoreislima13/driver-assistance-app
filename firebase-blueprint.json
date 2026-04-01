@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "createdAt"]
+    },
+    "Ride": {
+      "title": "Ride",
+      "description": "A single ride completed by the driver",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "app": { "type": "string", "enum": ["Uber", "99", "inDrive", "Particular"] },
+        "earnings": { "type": "number" },
+        "distanceKm": { "type": "number" },
+        "durationMinutes": { "type": "number" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "app", "earnings", "distanceKm", "durationMinutes", "origin", "destination", "createdAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "A single expense incurred by the driver",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["Combustível", "Lavagem", "Pedágio", "Alimentação", "Manutenção", "Outros"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "category", "amount", "createdAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle Info",
+      "description": "Driver's vehicle information",
+      "type": "object",
+      "properties": {
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "engine": { "type": "string" },
+        "currentKm": { "type": "number" },
+        "idealConsumptionKmL": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["make", "model", "year", "engine", "currentKm", "idealConsumptionKmL", "updatedAt"]
+    },
+    "MaintenanceAlert": {
+      "title": "Maintenance Alert",
+      "description": "Alert for vehicle maintenance",
+      "type": "object",
+      "properties": {
+        "item": { "type": "string" },
+        "intervalKm": { "type": "number" },
+        "lastServiceKm": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["item", "intervalKm", "lastServiceKm", "createdAt"]
+    },
+    "FixedExpenses": {
+      "title": "Fixed Expenses Info",
+      "description": "Driver's fixed expenses configuration",
+      "type": "object",
+      "properties": {
+        "insurance": { "type": "number" },
+        "ipva": { "type": "number" },
+        "internet": { "type": "number" },
+        "maintenanceReservePerKm": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["insurance", "ipva", "internet", "maintenanceReservePerKm", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "users/{userId}/rides/{rideId}": {
+      "schema": { "$ref": "#/entities/Ride" },
+      "description": "Rides for a specific user"
+    },
+    "users/{userId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Expenses for a specific user"
+    },
+    "users/{userId}/vehicle/info": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Vehicle info for a specific user"
+    },
+    "users/{userId}/maintenanceAlerts/{alertId}": {
+      "schema": { "$ref": "#/entities/MaintenanceAlert" },
+      "description": "Maintenance alerts for a specific user"
+    },
+    "users/{userId}/fixedExpenses/info": {
+      "schema": { "$ref": "#/entities/FixedExpenses" },
+      "description": "Fixed expenses info for a specific user"
+    }
+  }
+}

@@ -1,0 +1,186 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}
+    // Fields:
+    //   - email: string (required)
+    //   - name: string (required)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: users/{userId}/rides/{rideId}
+    // Fields:
+    //   - date: string (required)
+    //   - app: string (required, enum)
+    //   - earnings: number (required)
+    //   - distanceKm: number (required)
+    //   - durationMinutes: number (required)
+    //   - origin: string (required)
+    //   - destination: string (required)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: users/{userId}/expenses/{expenseId}
+    // Fields:
+    //   - date: string (required)
+    //   - category: string (required, enum)
+    //   - amount: number (required)
+    //   - description: string (optional)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: users/{userId}/vehicle/info
+    // Fields:
+    //   - make: string (required)
+    //   - model: string (required)
+    //   - year: number (required)
+    //   - engine: string (required)
+    //   - currentKm: number (required)
+    //   - idealConsumptionKmL: number (required)
+    //   - updatedAt: string (required)
+    //
+    // Collection: users/{userId}/maintenanceAlerts/{alertId}
+    // Fields:
+    //   - item: string (required)
+    //   - intervalKm: number (required)
+    //   - lastServiceKm: number (required)
+    //   - createdAt: string (required, immutable)
+    //
+    // Collection: users/{userId}/fixedExpenses/info
+    // Fields:
+    //   - insurance: number (required)
+    //   - ipva: number (required)
+    //   - internet: number (required)
+    //   - maintenanceReservePerKm: number (required)
+    //   - updatedAt: string (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Domain Validators
+    function isValidUser() {
+      return hasRequiredFields(['email', 'name', 'createdAt']) &&
+             request.resource.data.email is string &&
+             request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() < 100 &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    function isValidRide() {
+      return hasRequiredFields(['date', 'app', 'earnings', 'distanceKm', 'durationMinutes', 'origin', 'destination', 'createdAt']) &&
+             isValidDateString(request.resource.data.date) &&
+             request.resource.data.app in ['Uber', '99', 'inDrive', 'Particular'] &&
+             request.resource.data.earnings is number && request.resource.data.earnings >= 0 &&
+             request.resource.data.distanceKm is number && request.resource.data.distanceKm >= 0 &&
+             request.resource.data.durationMinutes is number && request.resource.data.durationMinutes >= 0 &&
+             request.resource.data.origin is string && request.resource.data.origin.size() > 0 && request.resource.data.origin.size() < 200 &&
+             request.resource.data.destination is string && request.resource.data.destination.size() > 0 && request.resource.data.destination.size() < 200 &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    function isValidExpense() {
+      return hasRequiredFields(['date', 'category', 'amount', 'createdAt']) &&
+             isValidDateString(request.resource.data.date) &&
+             request.resource.data.category in ['Combustível', 'Lavagem', 'Pedágio', 'Alimentação', 'Manutenção', 'Outros'] &&
+             request.resource.data.amount is number && request.resource.data.amount >= 0 &&
+             isValidOptionalString('description', 0, 500) &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    function isValidVehicle() {
+      return hasRequiredFields(['make', 'model', 'year', 'engine', 'currentKm', 'idealConsumptionKmL', 'updatedAt']) &&
+             request.resource.data.make is string && request.resource.data.make.size() > 0 && request.resource.data.make.size() < 50 &&
+             request.resource.data.model is string && request.resource.data.model.size() > 0 && request.resource.data.model.size() < 50 &&
+             request.resource.data.year is number && request.resource.data.year > 1900 &&
+             request.resource.data.engine is string && request.resource.data.engine.size() > 0 && request.resource.data.engine.size() < 20 &&
+             request.resource.data.currentKm is number && request.resource.data.currentKm >= 0 &&
+             request.resource.data.idealConsumptionKmL is number && request.resource.data.idealConsumptionKmL > 0 &&
+             isValidDateString(request.resource.data.updatedAt);
+    }
+
+    function isValidMaintenanceAlert() {
+      return hasRequiredFields(['item', 'intervalKm', 'lastServiceKm', 'createdAt']) &&
+             request.resource.data.item is string && request.resource.data.item.size() > 0 && request.resource.data.item.size() < 100 &&
+             request.resource.data.intervalKm is number && request.resource.data.intervalKm > 0 &&
+             request.resource.data.lastServiceKm is number && request.resource.data.lastServiceKm >= 0 &&
+             isValidDateString(request.resource.data.createdAt);
+    }
+
+    function isValidFixedExpenses() {
+      return hasRequiredFields(['insurance', 'ipva', 'internet', 'maintenanceReservePerKm', 'updatedAt']) &&
+             request.resource.data.insurance is number && request.resource.data.insurance >= 0 &&
+             request.resource.data.ipva is number && request.resource.data.ipva >= 0 &&
+             request.resource.data.internet is number && request.resource.data.internet >= 0 &&
+             request.resource.data.maintenanceReservePerKm is number && request.resource.data.maintenanceReservePerKm >= 0 &&
+             isValidDateString(request.resource.data.updatedAt);
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser();
+      allow update: if isOwner(userId) && isValidUser() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isOwner(userId);
+      
+      match /rides/{rideId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidRide();
+        allow update: if isOwner(userId) && isValidRide() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /expenses/{expenseId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidExpense();
+        allow update: if isOwner(userId) && isValidExpense() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /vehicle/info {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidVehicle();
+        allow update: if isOwner(userId) && isValidVehicle();
+        allow delete: if isOwner(userId);
+      }
+
+      match /maintenanceAlerts/{alertId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidMaintenanceAlert();
+        allow update: if isOwner(userId) && isValidMaintenanceAlert() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+      }
+
+      match /fixedExpenses/info {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidFixedExpenses();
+        allow update: if isOwner(userId) && isValidFixedExpenses();
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "DriverMetrics",
+  "description": "Web App completo para gestão financeira, manutenção e rotina de motoristas de aplicativo (Uber, 99, inDrive).",
+  "requestFramePermissions": []
+}
