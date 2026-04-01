@@ -31,6 +31,8 @@ export const Finances = () => {
   const [fixedInstallment, setFixedInstallment] = useState((fixedExpenses.carInstallment || 0).toString());
   const [fixedTireCost, setFixedTireCost] = useState((fixedExpenses.tireSetCost || 0).toString());
   const [fixedGoal, setFixedGoal] = useState((fixedExpenses.netIncomeGoal || 0).toString());
+  const [fixedWorkDays, setFixedWorkDays] = useState((fixedExpenses.workDaysPerMonth || 24).toString());
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     const handleOpenRide = () => setActiveTab('receitas');
@@ -56,7 +58,7 @@ export const Finances = () => {
       app: rideApp,
       earnings: parseFloat(rideEarnings),
       distanceKm: parseFloat(rideKm),
-      durationMinutes: parseInt(rideDuration, 10),
+      durationMinutes: Math.round(parseFloat(rideDuration) * 60),
       origin: 'Local (Manual)',
       destination: 'Destino (Manual)',
     });
@@ -64,7 +66,6 @@ export const Finances = () => {
     setRideEarnings('');
     setRideKm('');
     setRideDuration('');
-    alert('Corrida adicionada com sucesso!');
   };
 
   const handleAddExpense = (e: React.FormEvent) => {
@@ -82,7 +83,6 @@ export const Finances = () => {
 
     setExpAmount('');
     setExpDesc('');
-    alert('Despesa adicionada com sucesso!');
   };
 
   const handleUpdateFixed = (e: React.FormEvent) => {
@@ -95,34 +95,42 @@ export const Finances = () => {
       carInstallment: parseFloat(fixedInstallment),
       tireSetCost: parseFloat(fixedTireCost),
       netIncomeGoal: parseFloat(fixedGoal),
+      workDaysPerMonth: parseInt(fixedWorkDays, 10),
     });
-    alert('Despesas fixas atualizadas!');
   };
 
-  // Calculations for today
-  const today = new Date();
-  const todayRides = rides.filter(r => isSameDay(parseISO(r.date), today));
-  const todayExpenses = expenses.filter(e => isSameDay(parseISO(e.date), today));
+  // Calculations for selected date
+  const referenceDate = parseISO(selectedDate);
+  const todayRides = rides.filter(r => isSameDay(parseISO(r.date), referenceDate));
+  const todayExpenses = expenses.filter(e => isSameDay(parseISO(e.date), referenceDate));
   
   const grossEarnings = todayRides.reduce((sum, r) => sum + r.earnings, 0);
   const totalKm = todayRides.reduce((sum, r) => sum + r.distanceKm, 0);
   const variableCosts = todayExpenses.reduce((sum, e) => sum + e.amount, 0);
   
-  // Daily fixed costs approximation
-  const dailyFixed = (fixedExpenses.insurance / 30) + (fixedExpenses.ipva / 365) + (fixedExpenses.internet / 30);
+  // Daily fixed costs approximation (aligned with Dashboard)
+  const dailyFixed = (fixedExpenses.insurance / 30) + (fixedExpenses.ipva / 365) + (fixedExpenses.internet / 30) + ((fixedExpenses.carInstallment || 0) / 30) + ((fixedExpenses.tireSetCost || 0) / 365);
   const maintenanceReserve = totalKm * fixedExpenses.maintenanceReservePerKm;
   
   const realProfit = grossEarnings - variableCosts - dailyFixed - maintenanceReserve;
 
   return (
     <div className="space-y-6 pb-24">
-      <h1 className="text-2xl font-bold tracking-tight">Gestão Financeira</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold tracking-tight">Gestão Financeira</h1>
+        <input 
+          type="date" 
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="bg-zinc-900 border border-zinc-800 text-sm rounded-md px-3 py-1.5 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
 
       <Card className="bg-zinc-900/80 border-zinc-800">
         <CardContent className="p-6">
           <div className="flex justify-between items-end mb-4">
             <div>
-              <p className="text-sm text-zinc-400">Lucro Real (Hoje)</p>
+              <p className="text-sm text-zinc-400">Lucro Real (Diário)</p>
               <h2 className="text-3xl font-bold text-emerald-400">R$ {realProfit.toFixed(2)}</h2>
             </div>
             <div className="text-right">
@@ -200,8 +208,8 @@ export const Finances = () => {
                   <Input type="number" step="0.1" value={rideKm} onChange={e => setRideKm(e.target.value)} placeholder="0.0" required />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-zinc-300">Duração (Min)</label>
-                  <Input type="number" value={rideDuration} onChange={e => setRideDuration(e.target.value)} placeholder="0" required />
+                  <label className="text-sm font-medium text-zinc-300">Duração (Horas)</label>
+                  <Input type="number" step="0.1" value={rideDuration} onChange={e => setRideDuration(e.target.value)} placeholder="Ex: 1.5" required />
                 </div>
               </div>
               <Button type="submit" className="w-full h-12 text-lg bg-emerald-600 hover:bg-emerald-700 text-white mt-4">
@@ -294,6 +302,11 @@ export const Finances = () => {
                 <label className="text-sm font-medium text-zinc-300">Meta de Renda Líquida (Mensal - R$)</label>
                 <p className="text-xs text-zinc-500 mb-2">Quanto você quer lucrar limpo no mês.</p>
                 <Input type="number" step="0.01" value={fixedGoal} onChange={e => setFixedGoal(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Dias de Trabalho por Mês</label>
+                <p className="text-xs text-zinc-500 mb-2">Quantos dias você pretende trabalhar no mês (ex: 24).</p>
+                <Input type="number" value={fixedWorkDays} onChange={e => setFixedWorkDays(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 text-white mt-4">
                 Salvar Configurações

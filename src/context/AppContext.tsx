@@ -50,6 +50,10 @@ interface AppContextType extends AppState {
   isAuthReady: boolean;
   addRide: (ride: Omit<Ride, 'id'>) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  updateRide: (id: string, ride: Partial<Omit<Ride, 'id'>>) => Promise<void>;
+  deleteRide: (id: string) => Promise<void>;
+  updateExpense: (id: string, expense: Partial<Omit<Expense, 'id'>>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   updateVehicle: (vehicle: Vehicle) => Promise<void>;
   updateFixedExpenses: (expenses: FixedExpenses) => Promise<void>;
 }
@@ -172,6 +176,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const updateRide = async (id: string, ride: Partial<Omit<Ride, 'id'>>) => {
+    if (!user) return;
+    try {
+      const rideRef = doc(db, 'users', user.uid, 'rides', id);
+      await updateDoc(rideRef, ride);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/rides/${id}`);
+    }
+  };
+
+  const deleteRide = async (id: string) => {
+    if (!user) return;
+    try {
+      const rideRef = doc(db, 'users', user.uid, 'rides', id);
+      await deleteDoc(rideRef);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/rides/${id}`);
+    }
+  };
+
+  const updateExpense = async (id: string, expense: Partial<Omit<Expense, 'id'>>) => {
+    if (!user) return;
+    try {
+      const expenseRef = doc(db, 'users', user.uid, 'expenses', id);
+      await updateDoc(expenseRef, expense);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/expenses/${id}`);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    if (!user) return;
+    try {
+      const expenseRef = doc(db, 'users', user.uid, 'expenses', id);
+      await deleteDoc(expenseRef);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/expenses/${id}`);
+    }
+  };
+
   const updateVehicle = async (vehicle: Vehicle) => {
     if (!user) return;
     try {
@@ -193,7 +237,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   return (
-    <AppContext.Provider value={{ ...state, user, isAuthReady, addRide, addExpense, updateVehicle, updateFixedExpenses }}>
+    <AppContext.Provider value={{ ...state, user, isAuthReady, addRide, addExpense, updateRide, deleteRide, updateExpense, deleteExpense, updateVehicle, updateFixedExpenses }}>
       {children}
     </AppContext.Provider>
   );

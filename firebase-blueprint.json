@@ -51,6 +51,9 @@
         "engine": { "type": "string" },
         "currentKm": { "type": "number" },
         "idealConsumptionKmL": { "type": "number" },
+        "fipeValue": { "type": "number" },
+        "fipeValueLastYear": { "type": "number" },
+        "averageKmPerMonth": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["make", "model", "year", "engine", "currentKm", "idealConsumptionKmL", "updatedAt"]
@@ -79,6 +82,7 @@
         "carInstallment": { "type": "number" },
         "tireSetCost": { "type": "number" },
         "netIncomeGoal": { "type": "number" },
+        "workDaysPerMonth": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["insurance", "ipva", "internet", "maintenanceReservePerKm", "updatedAt"]

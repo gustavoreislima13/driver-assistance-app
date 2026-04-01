@@ -27,6 +27,9 @@ export interface Vehicle {
   engine: string;
   currentKm: number;
   idealConsumptionKmL: number;
+  fipeValue?: number;
+  fipeValueLastYear?: number;
+  averageKmPerMonth?: number;
 }
 
 export interface MaintenanceAlert {
@@ -44,6 +47,7 @@ export interface FixedExpenses {
   carInstallment?: number; // Monthly
   tireSetCost?: number; // Total cost
   netIncomeGoal?: number; // Monthly goal
+  workDaysPerMonth?: number; // Days worked per month
 }
 
 export interface AppState {

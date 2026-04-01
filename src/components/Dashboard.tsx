@@ -4,34 +4,52 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Car, Fuel, DollarSign, Clock, Plus, Activity, Target } from 'lucide-react';
-import { format, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, subDays, isSameDay, parseISO, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const Dashboard = () => {
   const { rides, expenses, vehicle, fixedExpenses } = useAppContext();
-  const [showAddRide, setShowAddRide] = useState(false);
-  const [showAddExpense, setShowAddExpense] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
-  const today = new Date();
+  const referenceDate = parseISO(selectedDate);
 
-  // Calculate today's metrics
-  const todayRides = rides.filter(r => isSameDay(parseISO(r.date), today));
-  const todayExpenses = expenses.filter(e => isSameDay(parseISO(e.date), today));
+  // Calculate today's metrics based on selectedDate
+  const todayRides = rides.filter(r => isSameDay(parseISO(r.date), referenceDate));
+  const todayExpenses = expenses.filter(e => isSameDay(parseISO(e.date), referenceDate));
 
   const grossEarnings = todayRides.reduce((sum, r) => sum + r.earnings, 0);
   const fuelCosts = todayExpenses.filter(e => e.category === 'Combustível').reduce((sum, e) => sum + e.amount, 0);
   const otherExpenses = todayExpenses.filter(e => e.category !== 'Combustível').reduce((sum, e) => sum + e.amount, 0);
-  const netProfit = grossEarnings - fuelCosts - otherExpenses;
-
   const totalKm = todayRides.reduce((sum, r) => sum + r.distanceKm, 0);
   const totalMinutes = todayRides.reduce((sum, r) => sum + r.durationMinutes, 0);
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  const formattedDuration = `${totalHours}h ${remainingMinutes}m`;
   
   const earningsPerKm = totalKm > 0 ? grossEarnings / totalKm : 0;
   const earningsPerHour = totalMinutes > 0 ? grossEarnings / (totalMinutes / 60) : 0;
 
+  // Calculate fixed expenses portion for the month
+  const dailyFixed = (fixedExpenses.insurance / 30) + (fixedExpenses.ipva / 365) + (fixedExpenses.internet / 30) + ((fixedExpenses.carInstallment || 0) / 30) + ((fixedExpenses.tireSetCost || 0) / 365);
+  const monthlyFixed = dailyFixed * 30; // Approximate monthly fixed costs
+
+  const netProfit = grossEarnings - fuelCosts - otherExpenses - dailyFixed - (totalKm * fixedExpenses.maintenanceReservePerKm);
+  
+  // Calculate weekly metrics
+  const startOfCurrentWeek = startOfWeek(referenceDate, { weekStartsOn: 0 }); // Sunday
+  const weeklyRides = rides.filter(r => parseISO(r.date) >= startOfCurrentWeek);
+  const weeklyExpenses = expenses.filter(e => parseISO(e.date) >= startOfCurrentWeek);
+  
+  const weeklyGross = weeklyRides.reduce((sum, r) => sum + r.earnings, 0);
+  const weeklyVarExpenses = weeklyExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const weeklyKm = weeklyRides.reduce((sum, r) => sum + r.distanceKm, 0);
+  const weeklyMaintReserve = weeklyKm * fixedExpenses.maintenanceReservePerKm;
+  const weeklyFixed = dailyFixed * 7; // Approximate weekly fixed costs
+  const weeklyNet = weeklyGross - weeklyVarExpenses - weeklyMaintReserve - weeklyFixed;
+
   // Calculate monthly net income for the goal progress
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
+  const currentMonth = referenceDate.getMonth();
+  const currentYear = referenceDate.getFullYear();
   
   const monthlyRides = rides.filter(r => {
     const d = parseISO(r.date);
@@ -47,22 +65,22 @@ export const Dashboard = () => {
   const monthlyVarExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
   const monthlyKm = monthlyRides.reduce((sum, r) => sum + r.distanceKm, 0);
   const monthlyMaintReserve = monthlyKm * fixedExpenses.maintenanceReservePerKm;
-  
-  // Calculate fixed expenses portion for the month
-  const monthlyFixed = 
-    fixedExpenses.insurance + 
-    fixedExpenses.internet + 
-    (fixedExpenses.carInstallment || 0) + 
-    (fixedExpenses.ipva / 12) + // IPVA is annual
-    ((fixedExpenses.tireSetCost || 0) / 12); // Assuming a set lasts a year for simplicity
     
   const monthlyNet = monthlyGross - monthlyVarExpenses - monthlyMaintReserve - monthlyFixed;
   const netIncomeGoal = fixedExpenses.netIncomeGoal || 0;
+  const workDaysPerMonth = fixedExpenses.workDaysPerMonth || 24;
+  
+  const dailyGoal = netIncomeGoal / workDaysPerMonth;
+  const weeklyGoal = dailyGoal * (workDaysPerMonth / 4.33); // Approx weeks per month
+  const missingMonthly = Math.max(0, netIncomeGoal - monthlyNet);
+  const missingWeekly = Math.max(0, weeklyGoal - weeklyNet);
+  const missingDaily = Math.max(0, dailyGoal - netProfit);
+
   const goalProgress = netIncomeGoal > 0 ? Math.min(100, Math.max(0, (monthlyNet / netIncomeGoal) * 100)) : 0;
 
-  // Chart data (last 7 days)
+  // Chart data (last 7 days from referenceDate)
   const chartData = Array.from({ length: 7 }).map((_, i) => {
-    const date = subDays(today, 6 - i);
+    const date = subDays(referenceDate, 6 - i);
     const dayRides = rides.filter(r => isSameDay(parseISO(r.date), date));
     const dayEarnings = dayRides.reduce((sum, r) => sum + r.earnings, 0);
     return {
@@ -73,7 +91,15 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6 pb-24">
-      <h1 className="text-2xl font-bold tracking-tight">Visão Geral</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold tracking-tight">Visão Geral</h1>
+        <input 
+          type="date" 
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="bg-zinc-900 border border-zinc-800 text-sm rounded-md px-3 py-1.5 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
       
       <div className="grid grid-cols-2 gap-4">
         {/* Goal Progress Card */}
@@ -93,9 +119,29 @@ export const Dashboard = () => {
                   style={{ width: `${goalProgress}%` }}
                 ></div>
               </div>
-              <div className="flex justify-between text-xs text-zinc-500">
+              <div className="flex justify-between text-xs text-zinc-500 mb-4">
                 <span>Atual: R$ {monthlyNet.toFixed(2)}</span>
+                <span>Falta: R$ {missingMonthly.toFixed(2)}</span>
                 <span>Meta: R$ {netIncomeGoal.toFixed(2)}</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-800">
+                <div>
+                  <h4 className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">Meta Semanal</h4>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-zinc-200">R$ {weeklyGoal.toFixed(2)}</span>
+                    <span className="text-[10px] text-zinc-500">Atual: R$ {weeklyNet.toFixed(2)}</span>
+                    <span className="text-[10px] text-indigo-400">Falta: R$ {missingWeekly.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mb-1">Meta Diária</h4>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-zinc-200">R$ {dailyGoal.toFixed(2)}</span>
+                    <span className="text-[10px] text-zinc-500">Atual: R$ {netProfit.toFixed(2)}</span>
+                    <span className="text-[10px] text-indigo-400">Falta: R$ {missingDaily.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -103,17 +149,40 @@ export const Dashboard = () => {
 
         <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-400">Lucro Líquido (Hoje)</CardTitle>
+            <CardTitle className="text-sm font-medium text-zinc-400">Lucro Líquido (Diário)</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-emerald-400">R$ {netProfit.toFixed(2)}</div>
+            <p className="text-xs text-zinc-500 mt-1">Duração: {formattedDuration}</p>
+          </CardContent>
+        </Card>
+
+        {/* Weekly Summary Cards */}
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-zinc-400">Ganhos (Semana)</CardTitle>
+            <Activity className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-blue-400">R$ {weeklyGross.toFixed(2)}</div>
           </CardContent>
         </Card>
 
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-zinc-400">Ganhos Brutos</CardTitle>
+            <CardTitle className="text-xs font-medium text-zinc-400">Despesas (Semana)</CardTitle>
+            <Fuel className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-red-400">R$ {weeklyVarExpenses.toFixed(2)}</div>
+            <p className="text-[10px] text-zinc-500 mt-1">Apenas variáveis registradas</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-900/50 border-zinc-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-medium text-zinc-400">Ganhos Brutos (Diário)</CardTitle>
             <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -123,7 +192,7 @@ export const Dashboard = () => {
 
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-zinc-400">Combustível</CardTitle>
+            <CardTitle className="text-xs font-medium text-zinc-400">Combustível (Diário)</CardTitle>
             <Fuel className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>

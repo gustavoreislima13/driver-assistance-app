@@ -25,6 +25,7 @@ export const initialData: AppState = {
     carInstallment: 1200,
     tireSetCost: 2000,
     netIncomeGoal: 4000,
+    workDaysPerMonth: 24,
   },
   rides: [
     {

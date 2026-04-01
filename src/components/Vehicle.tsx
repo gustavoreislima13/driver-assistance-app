@@ -3,7 +3,9 @@ import { useAppContext } from '../context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Car, Wrench, AlertTriangle, CheckCircle } from 'lucide-react';
+import { format, addDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Car, Wrench, AlertTriangle, CheckCircle, TrendingDown } from 'lucide-react';
 
 export const Vehicle = () => {
   const { vehicle, maintenanceAlerts, updateVehicle } = useAppContext();
@@ -14,6 +16,9 @@ export const Vehicle = () => {
   const [engine, setEngine] = useState(vehicle.engine);
   const [currentKm, setCurrentKm] = useState(vehicle.currentKm.toString());
   const [idealConsumptionKmL, setIdealConsumptionKmL] = useState(vehicle.idealConsumptionKmL.toString());
+  const [fipeValue, setFipeValue] = useState((vehicle.fipeValue || 0).toString());
+  const [fipeValueLastYear, setFipeValueLastYear] = useState((vehicle.fipeValueLastYear || 0).toString());
+  const [averageKmPerMonth, setAverageKmPerMonth] = useState((vehicle.averageKmPerMonth || 3000).toString());
 
   const handleUpdateVehicle = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,9 +29,14 @@ export const Vehicle = () => {
       engine,
       currentKm: parseInt(currentKm, 10),
       idealConsumptionKmL: parseFloat(idealConsumptionKmL),
+      fipeValue: parseFloat(fipeValue),
+      fipeValueLastYear: parseFloat(fipeValueLastYear),
+      averageKmPerMonth: parseInt(averageKmPerMonth, 10),
     });
-    alert('Veículo atualizado!');
   };
+
+  const depreciation = parseFloat(fipeValueLastYear) - parseFloat(fipeValue);
+  const depreciationPercent = parseFloat(fipeValueLastYear) > 0 ? (depreciation / parseFloat(fipeValueLastYear)) * 100 : 0;
 
   return (
     <div className="space-y-6 pb-24">
@@ -66,11 +76,43 @@ export const Vehicle = () => {
                 <Input type="number" value={currentKm} onChange={e => setCurrentKm(e.target.value)} className="text-lg font-bold text-blue-400" />
               </div>
               <div className="space-y-2 col-span-2">
+                <label className="text-xs text-zinc-400">Média de KM rodados por mês</label>
+                <p className="text-[10px] text-zinc-500 mb-1">Usado para estimar a data das próximas manutenções.</p>
+                <Input type="number" value={averageKmPerMonth} onChange={e => setAverageKmPerMonth(e.target.value)} />
+              </div>
+              <div className="space-y-2 col-span-2">
                 <label className="text-xs text-zinc-400">Consumo Ideal (KM/L)</label>
                 <Input type="number" step="0.1" value={idealConsumptionKmL} onChange={e => setIdealConsumptionKmL(e.target.value)} />
               </div>
+              
+              <div className="col-span-2 pt-4 border-t border-zinc-800">
+                <h3 className="text-sm font-medium text-zinc-300 mb-4 flex items-center">
+                  <TrendingDown className="w-4 h-4 mr-2 text-red-400" />
+                  Desvalorização (Tabela FIPE)
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-400">Valor FIPE Ano Passado (R$)</label>
+                    <Input type="number" step="0.01" value={fipeValueLastYear} onChange={e => setFipeValueLastYear(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-zinc-400">Valor FIPE Atual (R$)</label>
+                    <Input type="number" step="0.01" value={fipeValue} onChange={e => setFipeValue(e.target.value)} />
+                  </div>
+                </div>
+                
+                {depreciation > 0 && (
+                  <div className="mt-4 p-3 bg-red-950/30 border border-red-900/50 rounded-lg flex justify-between items-center">
+                    <span className="text-sm text-zinc-300">Desvalorização no ano:</span>
+                    <div className="text-right">
+                      <span className="block text-red-400 font-bold">R$ {depreciation.toFixed(2)}</span>
+                      <span className="text-xs text-red-500/80">-{depreciationPercent.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">Atualizar Veículo</Button>
+            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 mt-6">Atualizar Veículo</Button>
           </form>
         </CardContent>
       </Card>
@@ -85,6 +127,13 @@ export const Vehicle = () => {
           const remainingKm = nextServiceKm - vehicle.currentKm;
           const isUrgent = remainingKm <= 1000;
           const isOverdue = remainingKm < 0;
+          
+          let estimatedDateStr = '';
+          if (!isOverdue && vehicle.averageKmPerMonth && vehicle.averageKmPerMonth > 0) {
+            const daysRemaining = (remainingKm / vehicle.averageKmPerMonth) * 30;
+            const estimatedDate = addDays(new Date(), daysRemaining);
+            estimatedDateStr = format(estimatedDate, "dd 'de' MMMM", { locale: ptBR });
+          }
 
           return (
             <Card key={alert.id} className={`border-zinc-800 ${isOverdue ? 'bg-red-950/30 border-red-900/50' : isUrgent ? 'bg-yellow-950/30 border-yellow-900/50' : 'bg-zinc-900/50'}`}>
@@ -92,8 +141,16 @@ export const Vehicle = () => {
                 <div>
                   <h3 className="font-semibold">{alert.item}</h3>
                   <p className="text-xs text-zinc-400 mt-1">
-                    Próxima troca: {nextServiceKm.toLocaleString()} KM
+                    Última: {alert.lastServiceKm.toLocaleString()} KM
                   </p>
+                  <p className="text-xs text-zinc-400">
+                    Próxima: {nextServiceKm.toLocaleString()} KM
+                  </p>
+                  {estimatedDateStr && (
+                    <p className="text-[10px] text-blue-400 mt-1">
+                      Estimativa: {estimatedDateStr}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right flex flex-col items-end">
                   {isOverdue ? (
