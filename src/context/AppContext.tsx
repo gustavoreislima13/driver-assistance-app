@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { AppState, Ride, Expense, Vehicle, MaintenanceAlert, FixedExpenses } from '../types';
 import { initialData } from '../mockData';
 import { db, auth } from '../firebase';
-import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { formatISO } from 'date-fns';
 
@@ -86,11 +86,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     // Ensure user document exists
     const userRef = doc(db, 'users', userId);
-    setDoc(userRef, {
-      email: user.email || '',
-      name: user.displayName || 'Driver',
-      createdAt: formatISO(new Date())
-    }, { merge: true }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
+    getDoc(userRef).then(docSnap => {
+      if (!docSnap.exists()) {
+        setDoc(userRef, {
+          email: user.email || '',
+          name: user.displayName || 'Driver',
+          createdAt: formatISO(new Date())
+        }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
+      }
+    }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
 
     // Rides
     const ridesRef = collection(db, 'users', userId, 'rides');

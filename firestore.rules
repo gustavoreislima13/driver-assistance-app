@@ -120,6 +120,9 @@ service cloud.firestore {
              request.resource.data.engine is string && request.resource.data.engine.size() > 0 && request.resource.data.engine.size() < 20 &&
              request.resource.data.currentKm is number && request.resource.data.currentKm >= 0 &&
              request.resource.data.idealConsumptionKmL is number && request.resource.data.idealConsumptionKmL > 0 &&
+             (!('fipeValue' in request.resource.data) || (request.resource.data.fipeValue is number && request.resource.data.fipeValue >= 0)) &&
+             (!('fipeValueLastYear' in request.resource.data) || (request.resource.data.fipeValueLastYear is number && request.resource.data.fipeValueLastYear >= 0)) &&
+             (!('averageKmPerMonth' in request.resource.data) || (request.resource.data.averageKmPerMonth is number && request.resource.data.averageKmPerMonth >= 0)) &&
              isValidDateString(request.resource.data.updatedAt);
     }
 
@@ -140,6 +143,7 @@ service cloud.firestore {
              (!('carInstallment' in request.resource.data) || (request.resource.data.carInstallment is number && request.resource.data.carInstallment >= 0)) &&
              (!('tireSetCost' in request.resource.data) || (request.resource.data.tireSetCost is number && request.resource.data.tireSetCost >= 0)) &&
              (!('netIncomeGoal' in request.resource.data) || (request.resource.data.netIncomeGoal is number && request.resource.data.netIncomeGoal >= 0)) &&
+             (!('workDaysPerMonth' in request.resource.data) || (request.resource.data.workDaysPerMonth is number && request.resource.data.workDaysPerMonth > 0)) &&
              isValidDateString(request.resource.data.updatedAt);
     }
 

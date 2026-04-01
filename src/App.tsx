@@ -9,13 +9,14 @@ import { Dashboard } from './components/Dashboard';
 import { Finances } from './components/Finances';
 import { Vehicle } from './components/Vehicle';
 import { Logbook } from './components/Logbook';
+import { Calculator } from './components/Calculator';
 import { AICopilot } from './components/AICopilot';
-import { LayoutDashboard, Wallet, Car, BookOpen, Bot, LogOut } from 'lucide-react';
+import { LayoutDashboard, Wallet, Car, BookOpen, Bot, LogOut, Calculator as CalcIcon } from 'lucide-react';
 import { auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import { Button } from './components/ui/button';
 
-type Tab = 'dashboard' | 'finances' | 'vehicle' | 'logbook' | 'copilot';
+type Tab = 'dashboard' | 'finances' | 'vehicle' | 'logbook' | 'calculator' | 'copilot';
 
 function LoginScreen() {
   const handleLogin = async () => {
@@ -76,6 +77,7 @@ function MainLayout() {
       case 'finances': return <Finances />;
       case 'vehicle': return <Vehicle />;
       case 'logbook': return <Logbook />;
+      case 'calculator': return <Calculator />;
       case 'copilot': return <AICopilot />;
       default: return <Dashboard />;
     }
@@ -106,6 +108,7 @@ function MainLayout() {
         <div className="flex h-16 items-center justify-around px-2 max-w-md mx-auto">
           <NavItem icon={<LayoutDashboard />} label="Início" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           <NavItem icon={<Wallet />} label="Finanças" isActive={activeTab === 'finances'} onClick={() => setActiveTab('finances')} />
+          <NavItem icon={<CalcIcon />} label="Calculadora" isActive={activeTab === 'calculator'} onClick={() => setActiveTab('calculator')} />
           <NavItem icon={<Car />} label="Veículo" isActive={activeTab === 'vehicle'} onClick={() => setActiveTab('vehicle')} />
           <NavItem icon={<BookOpen />} label="Diário" isActive={activeTab === 'logbook'} onClick={() => setActiveTab('logbook')} />
           <NavItem icon={<Bot />} label="Copilot" isActive={activeTab === 'copilot'} onClick={() => setActiveTab('copilot')} />
