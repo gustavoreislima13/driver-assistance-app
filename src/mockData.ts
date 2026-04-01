@@ -22,6 +22,9 @@ export const initialData: AppState = {
     ipva: 1200, // Annual
     internet: 50, // Monthly
     maintenanceReservePerKm: 0.15, // R$ 0.15 per km driven
+    carInstallment: 1200,
+    tireSetCost: 2000,
+    netIncomeGoal: 4000,
   },
   rides: [
     {

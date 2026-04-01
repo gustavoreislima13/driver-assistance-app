@@ -3,12 +3,12 @@ import { useAppContext } from '../context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Car, Fuel, DollarSign, Clock, Plus, Activity } from 'lucide-react';
+import { Car, Fuel, DollarSign, Clock, Plus, Activity, Target } from 'lucide-react';
 import { format, subDays, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const Dashboard = () => {
-  const { rides, expenses, vehicle } = useAppContext();
+  const { rides, expenses, vehicle, fixedExpenses } = useAppContext();
   const [showAddRide, setShowAddRide] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
 
@@ -29,6 +29,37 @@ export const Dashboard = () => {
   const earningsPerKm = totalKm > 0 ? grossEarnings / totalKm : 0;
   const earningsPerHour = totalMinutes > 0 ? grossEarnings / (totalMinutes / 60) : 0;
 
+  // Calculate monthly net income for the goal progress
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  
+  const monthlyRides = rides.filter(r => {
+    const d = parseISO(r.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+  
+  const monthlyExpenses = expenses.filter(e => {
+    const d = parseISO(e.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const monthlyGross = monthlyRides.reduce((sum, r) => sum + r.earnings, 0);
+  const monthlyVarExpenses = monthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const monthlyKm = monthlyRides.reduce((sum, r) => sum + r.distanceKm, 0);
+  const monthlyMaintReserve = monthlyKm * fixedExpenses.maintenanceReservePerKm;
+  
+  // Calculate fixed expenses portion for the month
+  const monthlyFixed = 
+    fixedExpenses.insurance + 
+    fixedExpenses.internet + 
+    (fixedExpenses.carInstallment || 0) + 
+    (fixedExpenses.ipva / 12) + // IPVA is annual
+    ((fixedExpenses.tireSetCost || 0) / 12); // Assuming a set lasts a year for simplicity
+    
+  const monthlyNet = monthlyGross - monthlyVarExpenses - monthlyMaintReserve - monthlyFixed;
+  const netIncomeGoal = fixedExpenses.netIncomeGoal || 0;
+  const goalProgress = netIncomeGoal > 0 ? Math.min(100, Math.max(0, (monthlyNet / netIncomeGoal) * 100)) : 0;
+
   // Chart data (last 7 days)
   const chartData = Array.from({ length: 7 }).map((_, i) => {
     const date = subDays(today, 6 - i);
@@ -45,6 +76,31 @@ export const Dashboard = () => {
       <h1 className="text-2xl font-bold tracking-tight">Visão Geral</h1>
       
       <div className="grid grid-cols-2 gap-4">
+        {/* Goal Progress Card */}
+        {netIncomeGoal > 0 && (
+          <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-indigo-500" />
+                  <h3 className="text-sm font-medium text-zinc-400">Meta de Renda Líquida (Mês)</h3>
+                </div>
+                <span className="text-sm font-bold text-indigo-400">{goalProgress.toFixed(1)}%</span>
+              </div>
+              <div className="w-full bg-zinc-800 rounded-full h-2.5 mb-2">
+                <div 
+                  className="bg-indigo-500 h-2.5 rounded-full transition-all duration-500" 
+                  style={{ width: `${goalProgress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-zinc-500">
+                <span>Atual: R$ {monthlyNet.toFixed(2)}</span>
+                <span>Meta: R$ {netIncomeGoal.toFixed(2)}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-400">Lucro Líquido (Hoje)</CardTitle>

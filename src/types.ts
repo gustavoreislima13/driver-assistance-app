@@ -41,6 +41,9 @@ export interface FixedExpenses {
   ipva: number; // Annual
   internet: number; // Monthly
   maintenanceReservePerKm: number; // e.g., 0.10 per km
+  carInstallment?: number; // Monthly
+  tireSetCost?: number; // Total cost
+  netIncomeGoal?: number; // Monthly goal
 }
 
 export interface AppState {

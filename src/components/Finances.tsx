@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { formatISO, parseISO, isSameDay } from 'date-fns';
+import { formatISO, parseISO, isSameDay, format } from 'date-fns';
 import { DollarSign, PlusCircle, TrendingDown, TrendingUp, Settings } from 'lucide-react';
 import { AppType, ExpenseCategory } from '../types';
 
@@ -13,11 +13,13 @@ export const Finances = () => {
   const [activeTab, setActiveTab] = useState<'receitas' | 'despesas' | 'fixas'>('receitas');
   
   // Form states
+  const [rideDate, setRideDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [rideApp, setRideApp] = useState<AppType>('Uber');
   const [rideEarnings, setRideEarnings] = useState('');
   const [rideKm, setRideKm] = useState('');
   const [rideDuration, setRideDuration] = useState('');
 
+  const [expDate, setExpDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [expCategory, setExpCategory] = useState<ExpenseCategory>('Combustível');
   const [expAmount, setExpAmount] = useState('');
   const [expDesc, setExpDesc] = useState('');
@@ -26,6 +28,9 @@ export const Finances = () => {
   const [fixedIpva, setFixedIpva] = useState(fixedExpenses.ipva.toString());
   const [fixedInt, setFixedInt] = useState(fixedExpenses.internet.toString());
   const [fixedMaint, setFixedMaint] = useState(fixedExpenses.maintenanceReservePerKm.toString());
+  const [fixedInstallment, setFixedInstallment] = useState((fixedExpenses.carInstallment || 0).toString());
+  const [fixedTireCost, setFixedTireCost] = useState((fixedExpenses.tireSetCost || 0).toString());
+  const [fixedGoal, setFixedGoal] = useState((fixedExpenses.netIncomeGoal || 0).toString());
 
   useEffect(() => {
     const handleOpenRide = () => setActiveTab('receitas');
@@ -44,8 +49,10 @@ export const Finances = () => {
     e.preventDefault();
     if (!rideEarnings || !rideKm || !rideDuration) return;
     
+    const dateObj = new Date(`${rideDate}T12:00:00`);
+    
     addRide({
-      date: formatISO(new Date()),
+      date: formatISO(dateObj),
       app: rideApp,
       earnings: parseFloat(rideEarnings),
       distanceKm: parseFloat(rideKm),
@@ -64,8 +71,10 @@ export const Finances = () => {
     e.preventDefault();
     if (!expAmount) return;
 
+    const dateObj = new Date(`${expDate}T12:00:00`);
+
     addExpense({
-      date: formatISO(new Date()),
+      date: formatISO(dateObj),
       category: expCategory,
       amount: parseFloat(expAmount),
       description: expDesc,
@@ -83,6 +92,9 @@ export const Finances = () => {
       ipva: parseFloat(fixedIpva),
       internet: parseFloat(fixedInt),
       maintenanceReservePerKm: parseFloat(fixedMaint),
+      carInstallment: parseFloat(fixedInstallment),
+      tireSetCost: parseFloat(fixedTireCost),
+      netIncomeGoal: parseFloat(fixedGoal),
     });
     alert('Despesas fixas atualizadas!');
   };
@@ -156,20 +168,26 @@ export const Finances = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddRide} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Aplicativo</label>
-                <div className="flex gap-2">
-                  {['Uber', '99', 'inDrive', 'Particular'].map(app => (
-                    <Button
-                      key={app}
-                      type="button"
-                      variant={rideApp === app ? 'default' : 'outline'}
-                      onClick={() => setRideApp(app as AppType)}
-                      className="flex-1 text-xs"
-                    >
-                      {app}
-                    </Button>
-                  ))}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-300">Data</label>
+                  <Input type="date" value={rideDate} onChange={e => setRideDate(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-300">Aplicativo</label>
+                  <div className="flex gap-2">
+                    {['Uber', '99', 'inDrive', 'Particular'].map(app => (
+                      <Button
+                        key={app}
+                        type="button"
+                        variant={rideApp === app ? 'default' : 'outline'}
+                        onClick={() => setRideApp(app as AppType)}
+                        className="flex-1 text-xs px-1"
+                      >
+                        {app}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
@@ -217,9 +235,15 @@ export const Finances = () => {
                   ))}
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-300">Valor (R$)</label>
-                <Input type="number" step="0.01" value={expAmount} onChange={e => setExpAmount(e.target.value)} placeholder="0.00" required className="text-lg py-6" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-300">Data</label>
+                  <Input type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-zinc-300">Valor (R$)</label>
+                  <Input type="number" step="0.01" value={expAmount} onChange={e => setExpAmount(e.target.value)} placeholder="0.00" required className="text-lg py-6" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Descrição (Opcional)</label>
@@ -241,6 +265,10 @@ export const Finances = () => {
           <CardContent>
             <form onSubmit={handleUpdateFixed} className="space-y-4">
               <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Parcela do Carro (Mensal - R$)</label>
+                <Input type="number" step="0.01" value={fixedInstallment} onChange={e => setFixedInstallment(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Seguro (Mensal - R$)</label>
                 <Input type="number" step="0.01" value={fixedIns} onChange={e => setFixedIns(e.target.value)} required />
               </div>
@@ -253,9 +281,19 @@ export const Finances = () => {
                 <Input type="number" step="0.01" value={fixedInt} onChange={e => setFixedInt(e.target.value)} required />
               </div>
               <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Jogo de Pneus (Valor Total - R$)</label>
+                <p className="text-xs text-zinc-500 mb-2">Valor para trocar os 4 pneus.</p>
+                <Input type="number" step="0.01" value={fixedTireCost} onChange={e => setFixedTireCost(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-zinc-300">Reserva de Manutenção (R$ por KM)</label>
                 <p className="text-xs text-zinc-500 mb-2">Valor guardado a cada KM rodado para futuras manutenções.</p>
                 <Input type="number" step="0.01" value={fixedMaint} onChange={e => setFixedMaint(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-300">Meta de Renda Líquida (Mensal - R$)</label>
+                <p className="text-xs text-zinc-500 mb-2">Quanto você quer lucrar limpo no mês.</p>
+                <Input type="number" step="0.01" value={fixedGoal} onChange={e => setFixedGoal(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700 text-white mt-4">
                 Salvar Configurações

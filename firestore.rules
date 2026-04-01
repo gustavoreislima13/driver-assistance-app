@@ -137,6 +137,9 @@ service cloud.firestore {
              request.resource.data.ipva is number && request.resource.data.ipva >= 0 &&
              request.resource.data.internet is number && request.resource.data.internet >= 0 &&
              request.resource.data.maintenanceReservePerKm is number && request.resource.data.maintenanceReservePerKm >= 0 &&
+             (!('carInstallment' in request.resource.data) || (request.resource.data.carInstallment is number && request.resource.data.carInstallment >= 0)) &&
+             (!('tireSetCost' in request.resource.data) || (request.resource.data.tireSetCost is number && request.resource.data.tireSetCost >= 0)) &&
+             (!('netIncomeGoal' in request.resource.data) || (request.resource.data.netIncomeGoal is number && request.resource.data.netIncomeGoal >= 0)) &&
              isValidDateString(request.resource.data.updatedAt);
     }
 

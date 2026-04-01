@@ -76,6 +76,9 @@
         "ipva": { "type": "number" },
         "internet": { "type": "number" },
         "maintenanceReservePerKm": { "type": "number" },
+        "carInstallment": { "type": "number" },
+        "tireSetCost": { "type": "number" },
+        "netIncomeGoal": { "type": "number" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["insurance", "ipva", "internet", "maintenanceReservePerKm", "updatedAt"]
