@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { MapPin, Navigation, DollarSign, Clock, Route, AlertCircle, CheckCircle, Share2, Download } from 'lucide-react';
+import { MapPin, Navigation, DollarSign, Clock, Route, AlertCircle, CheckCircle, Share2, Download, Plus, Trash2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -33,8 +33,7 @@ const MapBounds = ({ bounds }: { bounds: L.LatLngBounds | null }) => {
 export const Calculator = () => {
   const { fixedExpenses, vehicle, addRide } = useAppContext();
   
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
+  const [addresses, setAddresses] = useState<string[]>(['', '']);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState('');
   
@@ -42,8 +41,7 @@ export const Calculator = () => {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [routeCoords, setRouteCoords] = useState<[number, number][]>([]);
-  const [originCoords, setOriginCoords] = useState<[number, number] | null>(null);
-  const [destCoords, setDestCoords] = useState<[number, number] | null>(null);
+  const [waypointsCoords, setWaypointsCoords] = useState<[number, number][]>([]);
   const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
 
   // Pricing config
@@ -75,8 +73,9 @@ export const Calculator = () => {
 
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!origin || !destination) {
-      setError('Preencha a origem e o destino.');
+    const validAddresses = addresses.filter(a => a.trim() !== '');
+    if (validAddresses.length < 2) {
+      setError('Preencha pelo menos a origem e o destino.');
       return;
     }
 
@@ -84,22 +83,21 @@ export const Calculator = () => {
     setError('');
 
     try {
-      // 1. Geocode Origin
-      const oCoords = await geocode(origin);
-      if (!oCoords) {
-        throw new Error('Não foi possível encontrar o endereço de origem.');
+      // 1. Geocode all addresses
+      const coordsPromises = validAddresses.map(addr => geocode(addr));
+      const coordsResults = await Promise.all(coordsPromises);
+      
+      const validCoords = coordsResults.filter((c): c is [number, number] => c !== null);
+      
+      if (validCoords.length !== validAddresses.length) {
+        throw new Error('Não foi possível encontrar um ou mais endereços.');
       }
-      setOriginCoords(oCoords);
+      
+      setWaypointsCoords(validCoords);
 
-      // 2. Geocode Destination
-      const dCoords = await geocode(destination);
-      if (!dCoords) {
-        throw new Error('Não foi possível encontrar o endereço de destino.');
-      }
-      setDestCoords(dCoords);
-
-      // 3. Get Route from OSRM
-      const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${oCoords[1]},${oCoords[0]};${dCoords[1]},${dCoords[0]}?overview=full&geometries=geojson`);
+      // 2. Get Route from OSRM
+      const coordinatesString = validCoords.map(c => `${c[1]},${c[0]}`).join(';');
+      const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=full&geometries=geojson`);
       const data = await response.json();
 
       if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
@@ -115,7 +113,7 @@ export const Calculator = () => {
       setRouteCoords(coords);
 
       // Set bounds
-      const bounds = L.latLngBounds([oCoords, dCoords]);
+      const bounds = L.latLngBounds(validCoords);
       setMapBounds(bounds);
 
     } catch (err: any) {
@@ -151,24 +149,24 @@ export const Calculator = () => {
   const handleSaveRide = () => {
     if (distanceKm === null || durationMin === null) return;
     
+    const validAddresses = addresses.filter(a => a.trim() !== '');
+    
     addRide({
       date: formatISO(new Date()),
       app: 'Particular',
       earnings: suggestedPrice,
       distanceKm: distanceKm,
       durationMinutes: Math.round(durationMin),
-      origin: origin,
-      destination: destination,
+      origin: validAddresses[0] || '',
+      destination: validAddresses[validAddresses.length - 1] || '',
     });
     
     // Reset form or show success
-    setOrigin('');
-    setDestination('');
+    setAddresses(['', '']);
     setDistanceKm(null);
     setDurationMin(null);
     setRouteCoords([]);
-    setOriginCoords(null);
-    setDestCoords(null);
+    setWaypointsCoords([]);
     
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
@@ -192,9 +190,10 @@ export const Calculator = () => {
       const file = new File([blob], 'cotacao-corrida.png', { type: 'image/png' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
+        const validAddresses = addresses.filter(a => a.trim() !== '');
         await navigator.share({
           title: 'Cotação de Corrida Particular',
-          text: `Cotação de corrida: ${origin} para ${destination}`,
+          text: `Cotação de corrida: ${validAddresses[0]} para ${validAddresses[validAddresses.length - 1]}`,
           files: [file]
         });
       } else {
@@ -212,6 +211,22 @@ export const Calculator = () => {
     }
   };
 
+  const handleAddStop = () => {
+    setAddresses([...addresses, '']);
+  };
+
+  const handleRemoveStop = (index: number) => {
+    const newAddresses = [...addresses];
+    newAddresses.splice(index, 1);
+    setAddresses(newAddresses);
+  };
+
+  const handleAddressChange = (index: number, value: string) => {
+    const newAddresses = [...addresses];
+    newAddresses[index] = value;
+    setAddresses(newAddresses);
+  };
+
   return (
     <div className="space-y-6 pb-24">
       <h1 className="text-2xl font-bold tracking-tight">Calculadora Particular</h1>
@@ -219,28 +234,47 @@ export const Calculator = () => {
       <Card className="bg-zinc-900/50 border-zinc-800">
         <CardContent className="p-4">
           <form onSubmit={handleCalculate} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-400 flex items-center">
-                <MapPin className="w-3 h-3 mr-1 text-emerald-500" /> Origem
-              </label>
-              <Input 
-                value={origin} 
-                onChange={e => setOrigin(e.target.value)} 
-                placeholder="Ex: Av. Paulista, 1000, São Paulo" 
-                required 
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-400 flex items-center">
-                <Navigation className="w-3 h-3 mr-1 text-blue-500" /> Destino
-              </label>
-              <Input 
-                value={destination} 
-                onChange={e => setDestination(e.target.value)} 
-                placeholder="Ex: Aeroporto de Guarulhos" 
-                required 
-              />
-            </div>
+            {addresses.map((address, index) => (
+              <div key={index} className="space-y-2 relative">
+                <label className="text-xs text-zinc-400 flex items-center">
+                  {index === 0 ? (
+                    <><MapPin className="w-3 h-3 mr-1 text-emerald-500" /> Origem</>
+                  ) : index === addresses.length - 1 ? (
+                    <><Navigation className="w-3 h-3 mr-1 text-blue-500" /> Destino</>
+                  ) : (
+                    <><MapPin className="w-3 h-3 mr-1 text-yellow-500" /> Parada {index}</>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <Input 
+                    value={address} 
+                    onChange={e => handleAddressChange(index, e.target.value)} 
+                    placeholder={index === 0 ? "Ex: Av. Paulista, 1000, São Paulo" : index === addresses.length - 1 ? "Ex: Aeroporto de Guarulhos" : "Ex: Rua Augusta, 500"} 
+                    required 
+                  />
+                  {addresses.length > 2 && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="icon"
+                      className="shrink-0 border-zinc-700 text-red-400 hover:bg-red-950/30 hover:text-red-300"
+                      onClick={() => handleRemoveStop(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-800"
+              onClick={handleAddStop}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Adicionar Parada
+            </Button>
             
             {error && (
               <div className="p-3 bg-red-950/30 border border-red-900/50 rounded-lg flex items-start text-red-400 text-sm">
@@ -270,24 +304,27 @@ export const Calculator = () => {
 
             <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
               <div className="p-4 bg-zinc-900/80 border-b border-zinc-800 space-y-3">
-                <div className="flex items-start">
-                  <MapPin className="w-4 h-4 mr-2 mt-0.5 text-emerald-500 shrink-0" />
-                  <div>
-                    <p className="text-xs text-zinc-400">Origem</p>
-                    <p className="text-sm font-medium">{origin}</p>
+                {addresses.filter(a => a.trim() !== '').map((address, index, arr) => (
+                  <div key={index} className="flex items-start">
+                    {index === 0 ? (
+                      <MapPin className="w-4 h-4 mr-2 mt-0.5 text-emerald-500 shrink-0" />
+                    ) : index === arr.length - 1 ? (
+                      <Navigation className="w-4 h-4 mr-2 mt-0.5 text-blue-500 shrink-0" />
+                    ) : (
+                      <MapPin className="w-4 h-4 mr-2 mt-0.5 text-yellow-500 shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-xs text-zinc-400">
+                        {index === 0 ? 'Origem' : index === arr.length - 1 ? 'Destino' : `Parada ${index}`}
+                      </p>
+                      <p className="text-sm font-medium">{address}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-start">
-                  <Navigation className="w-4 h-4 mr-2 mt-0.5 text-blue-500 shrink-0" />
-                  <div>
-                    <p className="text-xs text-zinc-400">Destino</p>
-                    <p className="text-sm font-medium">{destination}</p>
-                  </div>
-                </div>
+                ))}
               </div>
               <div className="h-48 w-full bg-zinc-800 relative z-0">
                 <MapContainer 
-                  center={originCoords || [-23.5505, -46.6333]} 
+                  center={waypointsCoords[0] || [-23.5505, -46.6333]} 
                   zoom={13} 
                   style={{ height: '100%', width: '100%' }}
                   zoomControl={false}
@@ -296,8 +333,9 @@ export const Calculator = () => {
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  {originCoords && <Marker position={originCoords} />}
-                  {destCoords && <Marker position={destCoords} />}
+                  {waypointsCoords.map((coord, index) => (
+                    <Marker key={index} position={coord} />
+                  ))}
                   {routeCoords.length > 0 && <Polyline positions={routeCoords} color="#3b82f6" weight={4} />}
                   <MapBounds bounds={mapBounds} />
                 </MapContainer>
