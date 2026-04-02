@@ -155,7 +155,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.email == 'reisanselmo7@gmail.com');
       allow create: if isOwner(userId) && isValidUser();
-      allow update: if isOwner(userId) && isValidUser() && request.resource.data.createdAt == resource.data.createdAt;
+      allow update: if (isOwner(userId) && isValidUser() && request.resource.data.createdAt == resource.data.createdAt) || (isAuthenticated() && request.auth.token.email == 'reisanselmo7@gmail.com' && isValidUser() && request.resource.data.createdAt == resource.data.createdAt);
       allow delete: if isOwner(userId);
       
       match /rides/{rideId} {

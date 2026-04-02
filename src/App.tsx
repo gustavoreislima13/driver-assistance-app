@@ -12,12 +12,13 @@ import { Logbook } from './components/Logbook';
 import { Calculator } from './components/Calculator';
 import { AICopilot } from './components/AICopilot';
 import { Paywall } from './components/Paywall';
-import { LayoutDashboard, Wallet, Car, BookOpen, Bot, LogOut, Calculator as CalcIcon } from 'lucide-react';
+import { AdminPanel } from './components/AdminPanel';
+import { LayoutDashboard, Wallet, Car, BookOpen, Bot, LogOut, Calculator as CalcIcon, Users } from 'lucide-react';
 import { auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import { Button } from './components/ui/button';
 
-type Tab = 'dashboard' | 'finances' | 'vehicle' | 'logbook' | 'calculator' | 'copilot';
+type Tab = 'dashboard' | 'finances' | 'vehicle' | 'logbook' | 'calculator' | 'copilot' | 'admin';
 
 function LoginScreen() {
   const handleLogin = async () => {
@@ -118,6 +119,7 @@ function MainLayout() {
       case 'logbook': return <Logbook />;
       case 'calculator': return <Calculator />;
       case 'copilot': return <AICopilot />;
+      case 'admin': return isAdmin ? <AdminPanel /> : <Dashboard />;
       default: return <Dashboard />;
     }
   };
@@ -151,6 +153,9 @@ function MainLayout() {
           <NavItem icon={<Car />} label="Veículo" isActive={activeTab === 'vehicle'} onClick={() => setActiveTab('vehicle')} />
           <NavItem icon={<BookOpen />} label="Diário" isActive={activeTab === 'logbook'} onClick={() => setActiveTab('logbook')} />
           <NavItem icon={<Bot />} label="Copilot" isActive={activeTab === 'copilot'} onClick={() => setActiveTab('copilot')} />
+          {isAdmin && (
+            <NavItem icon={<Users />} label="Admin" isActive={activeTab === 'admin'} onClick={() => setActiveTab('admin')} />
+          )}
         </div>
       </nav>
     </div>

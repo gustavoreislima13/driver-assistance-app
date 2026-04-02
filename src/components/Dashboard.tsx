@@ -6,10 +6,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { Car, Fuel, DollarSign, Clock, Plus, Activity, Target } from 'lucide-react';
 import { format, subDays, isSameDay, parseISO, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Stopwatch } from './Stopwatch';
 
 export const Dashboard = () => {
   const { rides, expenses, vehicle, fixedExpenses } = useAppContext();
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [revenueFilter, setRevenueFilter] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
   const referenceDate = parseISO(selectedDate);
 
@@ -67,6 +69,11 @@ export const Dashboard = () => {
   const monthlyMaintReserve = monthlyKm * fixedExpenses.maintenanceReservePerKm;
     
   const monthlyNet = monthlyGross - monthlyVarExpenses - monthlyMaintReserve - monthlyFixed;
+  
+  // Calculate yearly metrics
+  const yearlyRides = rides.filter(r => parseISO(r.date).getFullYear() === currentYear);
+  const yearlyGross = yearlyRides.reduce((sum, r) => sum + r.earnings, 0);
+
   const netIncomeGoal = fixedExpenses.netIncomeGoal || 0;
   const workDaysPerMonth = fixedExpenses.workDaysPerMonth || 24;
   
@@ -100,6 +107,8 @@ export const Dashboard = () => {
           className="bg-zinc-900 border border-zinc-800 text-sm rounded-md px-3 py-1.5 text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
+
+      <Stopwatch />
       
       <div className="grid grid-cols-2 gap-4">
         {/* Goal Progress Card */}
@@ -147,6 +156,67 @@ export const Dashboard = () => {
           </Card>
         )}
 
+        {/* Revenue Card with Filter */}
+        <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-400">Faturamento</CardTitle>
+            <div className="flex bg-zinc-950 border border-zinc-800 rounded-md p-0.5">
+              <button 
+                onClick={() => setRevenueFilter('daily')}
+                className={`text-[10px] px-2 py-1 rounded-sm transition-colors ${revenueFilter === 'daily' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Dia
+              </button>
+              <button 
+                onClick={() => setRevenueFilter('weekly')}
+                className={`text-[10px] px-2 py-1 rounded-sm transition-colors ${revenueFilter === 'weekly' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Semana
+              </button>
+              <button 
+                onClick={() => setRevenueFilter('monthly')}
+                className={`text-[10px] px-2 py-1 rounded-sm transition-colors ${revenueFilter === 'monthly' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Mês
+              </button>
+              <button 
+                onClick={() => setRevenueFilter('yearly')}
+                className={`text-[10px] px-2 py-1 rounded-sm transition-colors ${revenueFilter === 'yearly' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Ano
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-400">
+              R$ {revenueFilter === 'daily' ? grossEarnings.toFixed(2) : 
+                  revenueFilter === 'weekly' ? weeklyGross.toFixed(2) : 
+                  revenueFilter === 'monthly' ? monthlyGross.toFixed(2) : 
+                  yearlyGross.toFixed(2)}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* KM Card */}
+        <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-400">KM Rodados</CardTitle>
+            <Car className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-between items-end">
+              <div>
+                <div className="text-2xl font-bold text-zinc-100">{totalKm.toFixed(1)} km</div>
+                <p className="text-xs text-zinc-500">Hoje</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-zinc-300">{weeklyKm.toFixed(1)} km</div>
+                <p className="text-xs text-zinc-500">Na semana</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="col-span-2 bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-zinc-400">Lucro Líquido (Diário)</CardTitle>
@@ -158,17 +228,6 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Weekly Summary Cards */}
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-zinc-400">Ganhos (Semana)</CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-blue-400">R$ {weeklyGross.toFixed(2)}</div>
-          </CardContent>
-        </Card>
-
         <Card className="bg-zinc-900/50 border-zinc-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-medium text-zinc-400">Despesas (Semana)</CardTitle>
@@ -177,16 +236,6 @@ export const Dashboard = () => {
           <CardContent>
             <div className="text-xl font-bold text-red-400">R$ {weeklyVarExpenses.toFixed(2)}</div>
             <p className="text-[10px] text-zinc-500 mt-1">Apenas variáveis registradas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-900/50 border-zinc-800">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs font-medium text-zinc-400">Ganhos Brutos (Diário)</CardTitle>
-            <Activity className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">R$ {grossEarnings.toFixed(2)}</div>
           </CardContent>
         </Card>
 
