@@ -11,6 +11,7 @@ import { Vehicle } from './components/Vehicle';
 import { Logbook } from './components/Logbook';
 import { Calculator } from './components/Calculator';
 import { AICopilot } from './components/AICopilot';
+import { Paywall } from './components/Paywall';
 import { LayoutDashboard, Wallet, Car, BookOpen, Bot, LogOut, Calculator as CalcIcon } from 'lucide-react';
 import { auth, googleProvider } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
@@ -48,8 +49,38 @@ function LoginScreen() {
 }
 
 function MainLayout() {
-  const { user, isAuthReady } = useAppContext();
+  const { user, userData, isAuthReady } = useAppContext();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+
+  useEffect(() => {
+    // Check for payment success in URL
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    
+    if (params.get('payment') === 'success' && sessionId && user) {
+      // Clear URL
+      window.history.replaceState({}, document.title, '/');
+      
+      // Verify session and update user
+      fetch(`/api/verify-session?session_id=${sessionId}`)
+        .then(res => res.json())
+        .then(async data => {
+          if (data.status === 'complete' || data.status === 'paid') {
+            // Update user document in Firestore
+            const { doc, setDoc } = await import('firebase/firestore');
+            const { db } = await import('./firebase');
+            await setDoc(doc(db, 'users', user.uid), {
+              subscriptionStatus: 'active'
+            }, { merge: true });
+            
+            alert('Pagamento confirmado! Bem-vindo ao DriverMetrics Premium.');
+            // Reload to get new user data
+            window.location.reload();
+          }
+        })
+        .catch(err => console.error('Error verifying session:', err));
+    }
+  }, [user]);
 
   useEffect(() => {
     const handleOpenFinances = () => setActiveTab('finances');
@@ -69,6 +100,14 @@ function MainLayout() {
 
   if (!user) {
     return <LoginScreen />;
+  }
+
+  // Check subscription status
+  const isAdmin = user.email === 'reisanselmo7@gmail.com';
+  const hasActiveSubscription = userData?.subscriptionStatus === 'active';
+  
+  if (!isAdmin && !hasActiveSubscription) {
+    return <Paywall />;
   }
 
   const renderContent = () => {

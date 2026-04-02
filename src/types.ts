@@ -50,6 +50,14 @@ export interface FixedExpenses {
   workDaysPerMonth?: number; // Days worked per month
 }
 
+export interface UserData {
+  email: string;
+  name: string;
+  createdAt: string;
+  role?: string;
+  subscriptionStatus?: string;
+}
+
 export interface AppState {
   rides: Ride[];
   expenses: Expense[];

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { AppState, Ride, Expense, Vehicle, MaintenanceAlert, FixedExpenses } from '../types';
+import { AppState, Ride, Expense, Vehicle, MaintenanceAlert, FixedExpenses, UserData } from '../types';
 import { initialData } from '../mockData';
 import { db, auth } from '../firebase';
 import { collection, doc, onSnapshot, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
@@ -47,6 +47,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 interface AppContextType extends AppState {
   user: User | null;
+  userData: UserData | null;
   isAuthReady: boolean;
   addRide: (ride: Omit<Ride, 'id'>) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
@@ -62,6 +63,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [state, setState] = useState<AppState>({
     rides: [],
@@ -84,17 +86,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const userId = user.uid;
 
-    // Ensure user document exists
+    // Ensure user document exists and listen to it
     const userRef = doc(db, 'users', userId);
-    getDoc(userRef).then(docSnap => {
-      if (!docSnap.exists()) {
-        setDoc(userRef, {
+    const unsubUser = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setUserData(docSnap.data() as UserData);
+      } else {
+        const newUserData = {
           email: user.email || '',
           name: user.displayName || 'Driver',
           createdAt: formatISO(new Date())
-        }).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
+        };
+        setDoc(userRef, newUserData).catch(err => handleFirestoreError(err, OperationType.WRITE, `users/${userId}`));
+        setUserData(newUserData);
       }
-    }).catch(err => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
+    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${userId}`));
 
     // Rides
     const ridesRef = collection(db, 'users', userId, 'rides');
@@ -152,6 +158,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${userId}/maintenanceAlerts`));
 
     return () => {
+      unsubUser();
       unsubRides();
       unsubExpenses();
       unsubVehicle();
@@ -241,7 +248,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   return (
-    <AppContext.Provider value={{ ...state, user, isAuthReady, addRide, addExpense, updateRide, deleteRide, updateExpense, deleteExpense, updateVehicle, updateFixedExpenses }}>
+    <AppContext.Provider value={{ ...state, user, userData, isAuthReady, addRide, addExpense, updateRide, deleteRide, updateExpense, deleteExpense, updateVehicle, updateFixedExpenses }}>
       {children}
     </AppContext.Provider>
   );

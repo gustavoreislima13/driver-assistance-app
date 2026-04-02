@@ -11,6 +11,8 @@ service cloud.firestore {
     //   - email: string (required)
     //   - name: string (required)
     //   - createdAt: string (required, immutable)
+    //   - role: string (optional)
+    //   - subscriptionStatus: string (optional)
     //
     // Collection: users/{userId}/rides/{rideId}
     // Fields:
@@ -88,6 +90,8 @@ service cloud.firestore {
       return hasRequiredFields(['email', 'name', 'createdAt']) &&
              request.resource.data.email is string &&
              request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() < 100 &&
+             isValidOptionalString('role', 0, 20) &&
+             isValidOptionalString('subscriptionStatus', 0, 20) &&
              isValidDateString(request.resource.data.createdAt);
     }
 
@@ -149,7 +153,7 @@ service cloud.firestore {
 
     // Rules
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.email == 'reisanselmo7@gmail.com');
       allow create: if isOwner(userId) && isValidUser();
       allow update: if isOwner(userId) && isValidUser() && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if isOwner(userId);
