@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { MapPin, Navigation, DollarSign, Clock, Route, AlertCircle, CheckCircle, Share2, Download, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Navigation, DollarSign, Clock, Route, AlertCircle, CheckCircle, Share2, Download, Plus, Trash2, Car } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -191,9 +191,32 @@ export const Calculator = () => {
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
         const validAddresses = addresses.filter(a => a.trim() !== '');
+        const origin = validAddresses[0];
+        const destination = validAddresses[validAddresses.length - 1];
+        
+        const shareText = `
+🚗 *COTAÇÃO DE CORRIDA PARTICULAR* 🚗
+
+📍 *Origem:* ${origin}
+🏁 *Destino:* ${destination}
+
+📏 *Distância:* ${distanceKm?.toFixed(1)} km
+⏱️ *Tempo Estimado:* ${Math.round(durationMin || 0)} min
+
+💰 *Valor Total:* R$ ${suggestedPrice.toFixed(2)}
+
+✨ *Por que viajar comigo?*
+✅ Conforto e segurança garantidos
+✅ Carro limpo e higienizado
+✅ Sem surpresas no valor final
+
+Gostou da proposta? Vamos fechar? 🤝
+Responda esta mensagem para confirmar sua viagem! 🚀
+`.trim();
+
         await navigator.share({
           title: 'Cotação de Corrida Particular',
-          text: `Cotação de corrida: ${validAddresses[0]} para ${validAddresses[validAddresses.length - 1]}`,
+          text: shareText,
           files: [file]
         });
       } else {
@@ -296,28 +319,40 @@ export const Calculator = () => {
 
       {distanceKm !== null && durationMin !== null && (
         <div className="space-y-6">
-          <div ref={quotationRef} className="space-y-6 p-4 bg-zinc-950 rounded-xl -mx-4 sm:mx-0">
-            <div className="text-center mb-2">
-              <h2 className="text-xl font-bold text-white">Cotação de Corrida</h2>
-              <p className="text-sm text-zinc-400">{formatISO(new Date(), { representation: 'date' })}</p>
+          <div ref={quotationRef} className="space-y-6 p-6 bg-zinc-950 rounded-xl -mx-4 sm:mx-0 border border-zinc-800">
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center justify-center p-3 bg-emerald-500/20 rounded-full mb-3">
+                <Car className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Sua Viagem Particular</h2>
+              <p className="text-sm text-zinc-400 mt-1">Viagem segura, confortável e sem surpresas.</p>
             </div>
 
-            <Card className="bg-zinc-900/50 border-zinc-800 overflow-hidden">
-              <div className="p-4 bg-zinc-900/80 border-b border-zinc-800 space-y-3">
+            <Card className="bg-zinc-900/80 border-zinc-700 overflow-hidden shadow-xl">
+              <div className="p-5 border-b border-zinc-800 space-y-4">
                 {addresses.filter(a => a.trim() !== '').map((address, index, arr) => (
                   <div key={index} className="flex items-start">
-                    {index === 0 ? (
-                      <MapPin className="w-4 h-4 mr-2 mt-0.5 text-emerald-500 shrink-0" />
-                    ) : index === arr.length - 1 ? (
-                      <Navigation className="w-4 h-4 mr-2 mt-0.5 text-blue-500 shrink-0" />
-                    ) : (
-                      <MapPin className="w-4 h-4 mr-2 mt-0.5 text-yellow-500 shrink-0" />
-                    )}
-                    <div>
-                      <p className="text-xs text-zinc-400">
-                        {index === 0 ? 'Origem' : index === arr.length - 1 ? 'Destino' : `Parada ${index}`}
+                    <div className="flex flex-col items-center mr-3">
+                      {index === 0 ? (
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                          <MapPin className="w-3 h-3 text-emerald-500" />
+                        </div>
+                      ) : index === arr.length - 1 ? (
+                        <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                          <Navigation className="w-3 h-3 text-blue-500" />
+                        </div>
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                          <MapPin className="w-3 h-3 text-yellow-500" />
+                        </div>
+                      )}
+                      {index < arr.length - 1 && <div className="w-0.5 h-full bg-zinc-700 my-1"></div>}
+                    </div>
+                    <div className="pb-2">
+                      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                        {index === 0 ? 'Saindo de' : index === arr.length - 1 ? 'Indo para' : `Parada ${index}`}
                       </p>
-                      <p className="text-sm font-medium">{address}</p>
+                      <p className="text-sm font-medium text-zinc-100 mt-0.5">{address}</p>
                     </div>
                   </div>
                 ))}
@@ -340,32 +375,33 @@ export const Calculator = () => {
                   <MapBounds bounds={mapBounds} />
                 </MapContainer>
               </div>
-              <CardContent className="p-4 grid grid-cols-2 gap-4 bg-zinc-900/80">
-                <div className="flex items-center">
-                  <Route className="w-5 h-5 text-blue-400 mr-3" />
-                  <div>
-                    <p className="text-xs text-zinc-400">Distância</p>
-                    <p className="text-lg font-bold">{distanceKm.toFixed(1)} km</p>
-                  </div>
+              <CardContent className="p-5 grid grid-cols-2 gap-4 bg-zinc-900/90">
+                <div className="flex flex-col items-center justify-center text-center p-3 bg-zinc-950/50 rounded-lg">
+                  <Route className="w-5 h-5 text-blue-400 mb-2" />
+                  <p className="text-xs text-zinc-400 mb-1">Distância</p>
+                  <p className="text-lg font-bold text-zinc-100">{distanceKm.toFixed(1)} km</p>
                 </div>
-                <div className="flex items-center">
-                  <Clock className="w-5 h-5 text-yellow-400 mr-3" />
-                  <div>
-                    <p className="text-xs text-zinc-400">Tempo Estimado</p>
-                    <p className="text-lg font-bold">{Math.round(durationMin)} min</p>
-                  </div>
+                <div className="flex flex-col items-center justify-center text-center p-3 bg-zinc-950/50 rounded-lg">
+                  <Clock className="w-5 h-5 text-yellow-400 mb-2" />
+                  <p className="text-xs text-zinc-400 mb-1">Tempo Estimado</p>
+                  <p className="text-lg font-bold text-zinc-100">{Math.round(durationMin)} min</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-zinc-900/50 border-zinc-800">
+            <Card className="bg-gradient-to-br from-emerald-900/40 to-zinc-900/80 border-emerald-900/50 shadow-lg">
               <CardContent className="p-6">
                 <div className="text-center space-y-2">
-                  <p className="text-sm text-zinc-400">Valor da Corrida</p>
-                  <p className="text-4xl font-bold text-emerald-400">R$ {suggestedPrice.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-emerald-400/80 uppercase tracking-wider">Valor do Investimento</p>
+                  <p className="text-5xl font-bold text-emerald-400">R$ {suggestedPrice.toFixed(2)}</p>
+                  <p className="text-xs text-zinc-400 mt-2">Pagamento via PIX, Cartão ou Dinheiro</p>
                 </div>
               </CardContent>
             </Card>
+            
+            <div className="text-center pt-2">
+              <p className="text-sm font-medium text-zinc-300">Gostou da proposta? Vamos fechar! 🤝</p>
+            </div>
           </div>
 
           <Card className="bg-zinc-900/50 border-zinc-800">
